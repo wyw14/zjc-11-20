@@ -1,0 +1,42 @@
+{
+  "stories": {
+    "mqcyembfew83gs": {
+      "id": "mqcyembfew83gs",
+      "title": "测试故事：星夜",
+      "createdAt": 1781391334019,
+      "updatedAt": 1781391334019,
+      "entries": [
+        {
+          "id": "mqcyembnpscfw2",
+          "author": "小明",
+          "content": "夜幕降临，繁星点点...",
+          "order": 1,
+          "createdAt": 1781391334019
+        }
+      ],
+      "totalChars": 12,
+      "participantCount": 1,
+      "locked": false,
+      "lockedReason": null
+    },
+    "mqcygyrz28j8ws": {
+      "id": "mqcygyrz28j8ws",
+      "title": "T",
+      "createdAt": 1781391443478,
+      "updatedAt": 1781391443478,
+      "entries": [
+        {
+          "id": "mqcygys625at02",
+          "author": "A",
+          "content": "夜幕降临，繁星点点的夜晚...",
+          "order": 1,
+          "createdAt": 1781391443478
+        }
+      ],
+      "totalChars": 15,
+      "participantCount": 1,
+      "locked": false,
+      "lockedReason": null
+    }
+  }
+}
