@@ -21,7 +21,10 @@ export const api = {
   addEntry: (id, data) => request.post(`/stories/${id}/entries`, data),
   resetStory: (id) => request.post(`/admin/stories/${id}/reset`),
   getReservations: (id) => request.get(`/stories/${id}/reservations`),
-  joinReservation: (id, data) => request.post(`/stories/${id}/reservations`, data),
+  joinReservation: async (id, data) => {
+    const res = await request.post(`/stories/${id}/reservations`, data)
+    return res
+  },
   leaveReservation: (id, data) => request.delete(`/stories/${id}/reservations`, { data })
 }
 

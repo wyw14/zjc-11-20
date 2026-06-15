@@ -247,6 +247,7 @@ const reserving = ref(false)
 const reserveError = ref('')
 const form = ref({ author: '', content: '' })
 const reserveForm = ref({ remark: '' })
+const reservationToken = ref('')
 const chatListRef = ref(null)
 
 const progressPct = computed(() => {
@@ -331,10 +332,12 @@ async function handleSubmit() {
   try {
     const updated = await api.addEntry(story.value.id, {
       author: form.value.author.trim(),
-      content: form.value.content.trim()
+      content: form.value.content.trim(),
+      token: reservationToken.value
     })
     story.value = updated
     form.value.content = ''
+    reservationToken.value = ''
     await nextTick()
     scrollToBottom()
   } catch (e) {
@@ -349,11 +352,12 @@ async function handleJoinQueue() {
   if (!canReserve.value) return
   reserving.value = true
   try {
-    const updated = await api.joinReservation(story.value.id, {
+    const result = await api.joinReservation(story.value.id, {
       author: form.value.author.trim(),
       remark: reserveForm.value.remark.trim()
     })
-    story.value = updated
+    story.value = result.story
+    reservationToken.value = result.token
     reserveForm.value.remark = ''
   } catch (e) {
     reserveError.value = e.message
@@ -364,12 +368,18 @@ async function handleJoinQueue() {
 
 async function handleLeaveQueue() {
   reserveError.value = ''
+  if (!reservationToken.value) {
+    reserveError.value = '预约凭证无效，请重新加入预约队列'
+    return
+  }
   reserving.value = true
   try {
     const updated = await api.leaveReservation(story.value.id, {
-      author: form.value.author.trim()
+      author: form.value.author.trim(),
+      token: reservationToken.value
     })
     story.value = updated
+    reservationToken.value = ''
   } catch (e) {
     reserveError.value = e.message
   } finally {
@@ -386,6 +396,9 @@ function scrollToTop() {
 }
 
 watch(() => route.params.id, loadStory)
+watch(() => form.value.author, () => {
+  reservationToken.value = ''
+})
 onMounted(loadStory)
 </script>
 

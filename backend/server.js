@@ -77,7 +77,7 @@ app.post('/api/stories', (req, res) => {
 
 app.post('/api/stories/:id/entries', (req, res) => {
   try {
-    const { content, author } = req.body || {};
+    const { content, author, token } = req.body || {};
     if (!content || !content.trim()) {
       return res.status(400).json({ error: '续写内容不能为空' });
     }
@@ -86,7 +86,8 @@ app.post('/api/stories/:id/entries', (req, res) => {
     }
     const result = addEntry(req.params.id, {
       content: content.trim(),
-      author: author.trim()
+      author: author.trim(),
+      token: token ? token.trim() : ''
     });
     if (!result.success) {
       return res.status(result.code || 400).json({ error: result.error });
@@ -124,7 +125,10 @@ app.post('/api/stories/:id/reservations', (req, res) => {
     if (!result.success) {
       return res.status(result.code || 400).json({ error: result.error });
     }
-    res.status(201).json(result.story);
+    res.status(201).json({
+      story: result.story,
+      token: result.token
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: '加入预约队列失败' });
@@ -133,12 +137,16 @@ app.post('/api/stories/:id/reservations', (req, res) => {
 
 app.delete('/api/stories/:id/reservations', (req, res) => {
   try {
-    const { author } = req.body || {};
+    const { author, token } = req.body || {};
     if (!author || !author.trim()) {
       return res.status(400).json({ error: '笔名不能为空' });
     }
+    if (!token || !token.trim()) {
+      return res.status(400).json({ error: '预约凭证不能为空' });
+    }
     const result = leaveReservationQueue(req.params.id, {
-      author: author.trim()
+      author: author.trim(),
+      token: token.trim()
     });
     if (!result.success) {
       return res.status(result.code || 400).json({ error: result.error });

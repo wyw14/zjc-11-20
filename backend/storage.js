@@ -57,6 +57,15 @@ function updateStoryStatus(story) {
       : null;
 }
 
+function sanitizeQueue(queue) {
+  return (queue || []).map(r => ({
+    id: r.id,
+    author: r.author,
+    remark: r.remark,
+    createdAt: r.createdAt
+  }));
+}
+
 function formatStoryDetail(story) {
   return {
     id: story.id,
@@ -71,7 +80,7 @@ function formatStoryDetail(story) {
     locked: story.locked,
     lockedReason: story.lockedReason,
     entries: story.entries,
-    reservationQueue: story.reservationQueue || []
+    reservationQueue: sanitizeQueue(story.reservationQueue)
   };
 }
 
@@ -126,7 +135,7 @@ export function getStoryById(id) {
   return formatStoryDetail(story);
 }
 
-export function addEntry(storyId, { content, author }) {
+export function addEntry(storyId, { content, author, token }) {
   const data = readData();
   const story = data.stories[storyId];
   if (!story) {
@@ -147,6 +156,13 @@ export function addEntry(storyId, { content, author }) {
         success: false,
         error: `当前轮到「${firstInQueue.author}」续写，请先加入预约队列排队`,
         code: 409
+      };
+    }
+    if (!token || !token.trim() || firstInQueue.token !== token.trim()) {
+      return {
+        success: false,
+        error: '预约凭证无效，请重新加入预约队列',
+        code: 401
       };
     }
   }
@@ -223,19 +239,21 @@ export function joinReservationQueue(storyId, { author, remark }) {
     return { success: false, error: '你已经在预约队列中了', code: 409 };
   }
   const now = Date.now();
+  const token = generateId() + generateId();
   const reservation = {
     id: generateId(),
     author: trimmedAuthor,
     remark: (remark || '').trim(),
-    createdAt: now
+    createdAt: now,
+    token
   };
   story.reservationQueue.push(reservation);
   story.updatedAt = now;
   writeData(data);
-  return { success: true, story: formatStoryDetail(story), reservation };
+  return { success: true, story: formatStoryDetail(story), token };
 }
 
-export function leaveReservationQueue(storyId, { author }) {
+export function leaveReservationQueue(storyId, { author, token }) {
   const data = readData();
   const story = data.stories[storyId];
   if (!story) {
@@ -247,10 +265,13 @@ export function leaveReservationQueue(storyId, { author }) {
   if (!author || !author.trim()) {
     return { success: false, error: '笔名不能为空', code: 400 };
   }
+  if (!token || !token.trim()) {
+    return { success: false, error: '预约凭证无效', code: 401 };
+  }
   const trimmedAuthor = author.trim();
-  const index = story.reservationQueue.findIndex(r => r.author === trimmedAuthor);
+  const index = story.reservationQueue.findIndex(r => r.author === trimmedAuthor && r.token === token);
   if (index === -1) {
-    return { success: false, error: '你不在预约队列中', code: 404 };
+    return { success: false, error: '预约凭证无效或你不在预约队列中', code: 404 };
   }
   story.reservationQueue.splice(index, 1);
   story.updatedAt = Date.now();
@@ -264,7 +285,7 @@ export function getReservationQueue(storyId) {
   if (!story) {
     return { success: false, error: '故事不存在', code: 404 };
   }
-  return { success: true, queue: story.reservationQueue || [] };
+  return { success: true, queue: sanitizeQueue(story.reservationQueue) };
 }
 
 export { MAX_PARTICIPANTS, MAX_CHARS_PER_STORY };
