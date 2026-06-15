@@ -19,7 +19,10 @@ export const api = {
   getStory: (id) => request.get(`/stories/${id}`),
   createStory: (data) => request.post('/stories', data),
   addEntry: (id, data) => request.post(`/stories/${id}/entries`, data),
-  resetStory: (id) => request.post(`/admin/stories/${id}/reset`)
+  resetStory: (id) => request.post(`/admin/stories/${id}/reset`),
+  getReservations: (id) => request.get(`/stories/${id}/reservations`),
+  joinReservation: (id, data) => request.post(`/stories/${id}/reservations`, data),
+  leaveReservation: (id, data) => request.delete(`/stories/${id}/reservations`, { data })
 }
 
 export default api

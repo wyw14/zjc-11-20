@@ -94,8 +94,83 @@
           </div>
         </section>
 
+        <section v-if="!story.locked" class="reservation-section card">
+          <h2 class="section-title">📋 续写预约队列</h2>
+          <div v-if="isMyTurn" class="my-turn-banner">
+            🎉 轮到你了！快去下方发布续写吧～
+          </div>
+          <div v-else-if="myPosition > 0" class="waiting-banner">
+            ⏳ 你排在第 {{ myPosition }} 位，前面还有 {{ myPosition - 1 }} 人
+          </div>
+          <div v-if="story.reservationQueue && story.reservationQueue.length > 0" class="queue-list">
+            <div
+              v-for="(item, index) in story.reservationQueue"
+              :key="item.id"
+              :class="['queue-item', { 'is-first': index === 0, 'is-me': item.author === form.author.trim() }]"
+            >
+              <div class="queue-position">
+                <span v-if="index === 0" class="position-badge first">当前</span>
+                <span v-else class="position-badge">{{ index + 1 }}</span>
+              </div>
+              <div class="queue-avatar" :style="{ background: avatarColor(item.author) }">
+                {{ item.author.slice(0, 1) }}
+              </div>
+              <div class="queue-info">
+                <div class="queue-author">
+                  {{ item.author }}
+                  <span v-if="item.author === form.author.trim()" class="me-tag">我</span>
+                </div>
+                <div v-if="item.remark" class="queue-remark">「{{ item.remark }}」</div>
+              </div>
+              <button
+                v-if="item.author === form.author.trim()"
+                class="btn-ghost btn-small"
+                :disabled="reserving"
+                @click="handleLeaveQueue"
+              >
+                退出
+              </button>
+            </div>
+          </div>
+          <div v-else class="queue-empty">
+            暂无预约，快来抢占第一棒！
+          </div>
+          <div class="join-queue-form">
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label>笔名</label>
+                <input
+                  v-model="form.author"
+                  placeholder="请输入你的笔名..."
+                  maxlength="20"
+                />
+              </div>
+              <div class="form-group flex-2">
+                <label>一句话备注（可选）</label>
+                <input
+                  v-model="reserveForm.remark"
+                  placeholder="例如：准备写一段反转剧情..."
+                  maxlength="50"
+                />
+              </div>
+            </div>
+            <div v-if="reserveError" class="error-text">{{ reserveError }}</div>
+            <button
+              v-if="!isInQueue"
+              class="btn-secondary"
+              :disabled="reserving || !canReserve"
+              @click="handleJoinQueue"
+            >
+              {{ reserving ? '加入中...' : '加入预约队列' }}
+            </button>
+          </div>
+        </section>
+
         <section v-if="!story.locked" class="write-section card">
           <h2 class="section-title">✏️ 参与续写</h2>
+          <div v-if="story.reservationQueue && story.reservationQueue.length > 0 && !isMyTurn" class="queue-notice">
+            ⚠️ 当前轮到「{{ story.reservationQueue[0].author }}」续写，请先加入上方预约队列
+          </div>
           <div class="form-group">
             <label>你的笔名</label>
             <input
@@ -168,7 +243,10 @@ const story = ref(null)
 const loading = ref(false)
 const submitting = ref(false)
 const submitError = ref('')
+const reserving = ref(false)
+const reserveError = ref('')
 const form = ref({ author: '', content: '' })
+const reserveForm = ref({ remark: '' })
 const chatListRef = ref(null)
 
 const progressPct = computed(() => {
@@ -193,6 +271,32 @@ const canSubmit = computed(() => {
     form.value.content.trim().length > 0 &&
     form.value.content.length <= maxAllowedChars.value
   )
+})
+
+const isInQueue = computed(() => {
+  if (!story.value || !story.value.reservationQueue) return false
+  const author = form.value.author.trim()
+  if (!author) return false
+  return story.value.reservationQueue.some(r => r.author === author)
+})
+
+const isMyTurn = computed(() => {
+  if (!story.value || !story.value.reservationQueue || story.value.reservationQueue.length === 0) return false
+  const author = form.value.author.trim()
+  if (!author) return false
+  return story.value.reservationQueue[0].author === author
+})
+
+const myPosition = computed(() => {
+  if (!story.value || !story.value.reservationQueue) return 0
+  const author = form.value.author.trim()
+  if (!author) return 0
+  const index = story.value.reservationQueue.findIndex(r => r.author === author)
+  return index === -1 ? 0 : index + 1
+})
+
+const canReserve = computed(() => {
+  return form.value.author.trim().length > 0
 })
 
 const avatarColors = [
@@ -237,6 +341,39 @@ async function handleSubmit() {
     submitError.value = e.message
   } finally {
     submitting.value = false
+  }
+}
+
+async function handleJoinQueue() {
+  reserveError.value = ''
+  if (!canReserve.value) return
+  reserving.value = true
+  try {
+    const updated = await api.joinReservation(story.value.id, {
+      author: form.value.author.trim(),
+      remark: reserveForm.value.remark.trim()
+    })
+    story.value = updated
+    reserveForm.value.remark = ''
+  } catch (e) {
+    reserveError.value = e.message
+  } finally {
+    reserving.value = false
+  }
+}
+
+async function handleLeaveQueue() {
+  reserveError.value = ''
+  reserving.value = true
+  try {
+    const updated = await api.leaveReservation(story.value.id, {
+      author: form.value.author.trim()
+    })
+    story.value = updated
+  } catch (e) {
+    reserveError.value = e.message
+  } finally {
+    reserving.value = false
   }
 }
 
@@ -473,6 +610,199 @@ onMounted(loadStory)
   color: var(--text-light);
 }
 
+.reservation-section {
+  margin-bottom: 20px;
+}
+
+.my-turn-banner {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: var(--success);
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 16px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.waiting-banner {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: var(--warning);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 16px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.queue-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.queue-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--surface-alt);
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.queue-item.is-first {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+  border-color: rgba(99, 102, 241, 0.2);
+}
+
+.queue-item.is-me {
+  border-color: var(--primary);
+}
+
+.queue-position {
+  flex-shrink: 0;
+  width: 36px;
+  text-align: center;
+}
+
+.position-badge {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  line-height: 24px;
+  text-align: center;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.position-badge.first {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: white;
+  width: auto;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 11px;
+}
+
+.queue-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
+}
+
+.queue-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.queue-author {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.me-tag {
+  background: var(--primary);
+  color: white;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-weight: 500;
+}
+
+.queue-remark {
+  font-size: 12px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-muted);
+  font-size: 14px;
+  background: var(--surface-alt);
+  border-radius: var(--radius-sm);
+  margin-bottom: 16px;
+}
+
+.join-queue-form {
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.form-group.flex-1 {
+  flex: 1;
+}
+
+.form-group.flex-2 {
+  flex: 2;
+}
+
+.queue-notice {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: var(--danger);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-ghost:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.btn-ghost:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-small {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
 .write-section {
   margin-bottom: 20px;
 }
@@ -535,6 +865,22 @@ onMounted(loadStory)
   }
   .bubble-wrapper {
     max-width: calc(100% - 48px);
+  }
+  .form-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .queue-item {
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .queue-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+  }
+  .queue-position {
+    width: 28px;
   }
 }
 </style>

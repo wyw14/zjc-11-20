@@ -4,7 +4,7 @@
       "id": "mqcyembfew83gs",
       "title": "测试故事：星夜",
       "createdAt": 1781391334019,
-      "updatedAt": 1781391334019,
+      "updatedAt": 1781483932072,
       "entries": [
         {
           "id": "mqcyembnpscfw2",
@@ -12,12 +12,33 @@
           "content": "夜幕降临，繁星点点...",
           "order": 1,
           "createdAt": 1781391334019
+        },
+        {
+          "id": "mqehfitl8pcch8",
+          "author": "小明",
+          "content": "月光如水，洒在静谧的小镇上，远处传来悠扬的笛声...",
+          "order": 2,
+          "createdAt": 1781483755017
         }
       ],
-      "totalChars": 12,
+      "totalChars": 38,
       "participantCount": 1,
       "locked": false,
-      "lockedReason": null
+      "lockedReason": null,
+      "reservationQueue": [
+        {
+          "id": "mqehgyvtnmi8id",
+          "author": "小红",
+          "remark": "",
+          "createdAt": 1781483822489
+        },
+        {
+          "id": "mqehjbfsc4wh6n",
+          "author": "小明",
+          "remark": "",
+          "createdAt": 1781483932072
+        }
+      ]
     },
     "mqcygyrz28j8ws": {
       "id": "mqcygyrz28j8ws",

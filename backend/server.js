@@ -6,6 +6,9 @@ import {
   getStoryById,
   addEntry,
   resetStory,
+  joinReservationQueue,
+  leaveReservationQueue,
+  getReservationQueue,
   MAX_PARTICIPANTS,
   MAX_CHARS_PER_STORY
 } from './storage.js';
@@ -92,6 +95,58 @@ app.post('/api/stories/:id/entries', (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: '提交续写失败' });
+  }
+});
+
+app.get('/api/stories/:id/reservations', (req, res) => {
+  try {
+    const result = getReservationQueue(req.params.id);
+    if (!result.success) {
+      return res.status(result.code || 400).json({ error: result.error });
+    }
+    res.json(result.queue);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '获取预约队列失败' });
+  }
+});
+
+app.post('/api/stories/:id/reservations', (req, res) => {
+  try {
+    const { author, remark } = req.body || {};
+    if (!author || !author.trim()) {
+      return res.status(400).json({ error: '笔名不能为空' });
+    }
+    const result = joinReservationQueue(req.params.id, {
+      author: author.trim(),
+      remark: remark || ''
+    });
+    if (!result.success) {
+      return res.status(result.code || 400).json({ error: result.error });
+    }
+    res.status(201).json(result.story);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '加入预约队列失败' });
+  }
+});
+
+app.delete('/api/stories/:id/reservations', (req, res) => {
+  try {
+    const { author } = req.body || {};
+    if (!author || !author.trim()) {
+      return res.status(400).json({ error: '笔名不能为空' });
+    }
+    const result = leaveReservationQueue(req.params.id, {
+      author: author.trim()
+    });
+    if (!result.success) {
+      return res.status(result.code || 400).json({ error: result.error });
+    }
+    res.json(result.story);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '退出预约队列失败' });
   }
 });
 
